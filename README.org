@@ -1,0 +1,94 @@
+* Message Queue Client
+
+This package provides an easy way to communicate with a message queue using our messaging protocol. 
+
+** Getting started
+Clone the repository and run =npm install=. 
+
+** Running tests
+The package.json includes scripts to run all tests. Just run =npm test=!
+
+** The protocol
+The messaging protocol is built directly on top of TCP and follows the simple syntax of =<KEYWORD> <DATA>=. Available keywords are as follows:
+
+*** =SCHED=
+Adds a new task to the queue. Messages need to follow the syntax
+
+#+BEGIN_SRC text
+SCHED <data>[@<service>]
+#+END_SRC
+
+The =@<service>= is optional and defines which listening service should execute the task. If not supplied, the task will be added to a =default= queue. 
+
+**** Examples
+#+BEGIN_SRC text
+SCHED { email: "test@test.de", message: "test message" }@EMAILSERVICE
+#+END_SRC
+
+Schedules a task for services listening to the =EMAILSERVICE= queue. The task is encoded as a JSON object and contains an email address and a message.
+The data part does not have to be JSON as we will see in the next example. In the context of the studybear backend however, we will always encode
+tasks as JSON objects.
+
+#+BEGIN_SRC text
+SCHED test
+#+END_SRC
+
+This is more of a minimum working example. Schedules the task "test" for services listing to the =default= queue.
+
+*** =ASK=
+Asks for a task from the queue. The full syntax is 
+
+#+BEGIN_SRC text
+ASK [service]
+#+END_SRC 
+
+Again, the =service= parameter is optional and the =default= queue is accessed if omitted. Prompts the messaging queue to respond with a =WANT?= message.
+
+**** Examples
+
+#+BEGIN_SRC text
+ASK EMAILSERVICE
+#+END_SRC
+
+Asks for a new task from the =EMAILSERVICE= queue.
+
+#+BEGIN_SRC text
+ASK
+#+END_SRC
+
+Asks for a new task from the =default= queue.
+
+*** =WANT?=
+Sent by the messaging queue to supply a task to a service. The full syntax is
+
+#+BEGIN_SRC text
+WANT? <data>
+#+END_SRC
+
+The data represents the task, and is equivalent to the data in the =SCHED= message.
+
+**** Examples
+
+#+BEGIN_SRC text
+WANT? { email: "test@test.de" message: "test message" }
+#+END_SRC
+
+Returns the same task we scheduled in the =SCHED= section.
+
+*** =NOPE=
+Sent by the messaging queue to indicate that there are no available tasks in the requested queue.
+
+*** =ACK=
+Confirms the acceptance of a =WANT?= message. The messaging queue assumes that the task will be done successfully and will remove it from the relevant
+queue. Should the receiving service fail in fulfilling the task, it has to be re =SCHED= uled.
+
+*** =DCL=
+Declines the task. The messaging queue will skip it and move it to the back of the queue. Can be used to postpone tasks. *ATTENTION* the messaging
+queue will not respond with another =WANT?= message, the client needs to =ASK= again.
+
+*** =DEL=
+Removes the task from the messaging queue. This may be useful if the task data is corrupted or not readable for some other reason. To avoid blocking the
+queue with tasks that will be =DCL= ined anyway, services can use =DEL= to remove them.
+
+*** =END=
+Ends the communication and closes the socket. 
