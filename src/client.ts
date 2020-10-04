@@ -15,7 +15,7 @@ export async function getMessageQueue(
 
   return new Promise((resolve, reject) => {
     client.on("error", (error) => {
-      reject(error)
+      reject(new Error(error.toString()))
     })
 
     client.connect(port, host, () => {
