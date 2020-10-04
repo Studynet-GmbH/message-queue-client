@@ -1,3 +1,2 @@
-export default function test() {
-  console.log("Hi!");
-}
+import * as client from "./client"
+export default client
