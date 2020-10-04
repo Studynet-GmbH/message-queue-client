@@ -1,0 +1,11 @@
+{
+    "name": "@studynet/message-queue-client",
+    "version": "1.0.0",
+    "main": "dist/index.js",
+    "scripts": {
+	"build": "tsc"
+    },
+    "devDependencies": {
+        "typescript": "^4.0.3"
+    }
+}
