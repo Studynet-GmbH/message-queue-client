@@ -7,11 +7,13 @@ import { taskExample } from "./client.assets.spec"
 describe("Message queue client functions", () => {
   let mockServer: net.Server
   let mockOnConnection: (socket: net.Socket) => void = (_) => {}
+  let connections: net.Socket[] = []
 
   before(async () => {
     chai.use(chaiAsPromised)
     mockServer = await new Promise((resolve) => {
       const server = net.createServer((socket) => {
+        connections.push(socket)
         mockOnConnection(socket)
       })
       server.listen(8080, "127.0.0.1")
@@ -21,6 +23,9 @@ describe("Message queue client functions", () => {
 
   after(() => {
     mockServer.close()
+    connections.forEach((socket) => {
+      socket.destroy()
+    })
   })
 
   describe("getMessageQueue", () => {
@@ -339,7 +344,6 @@ describe("Message queue client functions", () => {
 
       await new Promise((resolve) => {
         subject.acceptLastTask(queue, () => {
-          console.log("ERROR")
           resolve()
         })
       })
