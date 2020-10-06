@@ -134,6 +134,39 @@ describe("Message queue client functions", () => {
       expect(task).to.have.property("data", taskExample)
     })
 
+    it("should return null if json mode is enabled and the received task is not valid json", async () => {
+      const exampleTask = "notJson"
+      mockOnConnection = (socket) => {
+        socket.on("data", (_data) => {
+          socket.write("WANT? " + exampleTask)
+        })
+      }
+
+      const queue = await subject.getMessageQueue("localhost", 8080, true)
+      const task = await subject.getTask(queue)
+
+      expect(task).to.be.null
+    })
+
+    it("should return an object if json mode is enabled and the received task IS valid json", async () => {
+      const exampleTask = {
+        test: "test",
+        test2: 1,
+      }
+
+      mockOnConnection = (socket) => {
+        socket.on("data", (_data) => {
+          socket.write("WANT? " + JSON.stringify(exampleTask))
+        })
+      }
+
+      const queue = await subject.getMessageQueue("localhost", 8080, true)
+      const task = await subject.getTask(queue)
+
+      expect(task).to.not.be.null
+      expect(task?.data).to.be.an("object")
+    })
+
     it("should reconnect if the message queue is set to active=false", async () => {
       mockOnConnection = (socket) => {
         socket.on("data", (_data) => {
@@ -289,6 +322,14 @@ describe("Message queue client functions", () => {
           resolve()
         })
       })
+
+      expect(subject.scheduleTask(queue, "task", null)).to.be.rejectedWith(
+        Error
+      )
+    })
+
+    it("should throw an error if json mode is enabled and the passed task is not an object", async () => {
+      const queue = await subject.getMessageQueue("localhost", 8080, true)
 
       expect(subject.scheduleTask(queue, "task", null)).to.be.rejectedWith(
         Error

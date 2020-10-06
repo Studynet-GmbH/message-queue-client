@@ -7,12 +7,14 @@ import { MessageQueue, Task } from "./@types/types"
  *
  * @param host - the hostname of a running message queue server
  * @param port - the corresponding port
+ * @param jsonMode - when set to true only accepts and returns json objects as tasks
  *
  * @returns the readonly MessageQueue object
  */
 export async function getMessageQueue(
   host: string,
-  port: number
+  port: number,
+  jsonMode: boolean = false
 ): Promise<Readonly<MessageQueue>> {
   const client = new net.Socket()
   const queue: MessageQueue = {
@@ -20,6 +22,7 @@ export async function getMessageQueue(
     port: port,
     client: client,
     active: false,
+    jsonMode: jsonMode,
   }
 
   return new Promise((resolve, reject) => {
@@ -50,6 +53,7 @@ export function closeMessageQueue(
     port: queue.port,
     client: queue.client,
     active: false,
+    jsonMode: queue.jsonMode,
   }
 }
 
@@ -89,6 +93,16 @@ export async function getTask(
 
         if (match != null) {
           task.data = match[1]
+
+          if (queue.jsonMode) {
+            try {
+              task.data = JSON.parse(task.data)
+            } catch (err) {
+              resolve(null)
+              return
+            }
+          }
+
           resolve(task)
         } else {
           resolve(null)
@@ -154,10 +168,14 @@ export async function scheduleTask(
   }
 
   return new Promise(async (resolve, reject) => {
-    // register listeners for relevant events
+    if (queue.jsonMode && typeof task != "object") {
+      reject(new Error("Task has to be an object when using jsonMode"))
+      return
+    }
 
     let barrier = false
 
+    // register listeners for relevant events
     registerOneTimeEvents({
       socket: queue.client,
       error: async (error) => {

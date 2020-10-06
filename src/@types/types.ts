@@ -5,6 +5,7 @@ export interface MessageQueue {
   port: number
   client: Socket
   active: boolean
+  jsonMode: boolean
 }
 
 export interface Task {
