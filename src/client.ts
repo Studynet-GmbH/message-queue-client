@@ -2,6 +2,14 @@ import net from "net"
 import sleep from "sleep-promise"
 import { MessageQueue, Task } from "./@types/types"
 
+/**
+ * Creates a MessageQueue object which represents a tcp connection to the message queue server.
+ *
+ * @param host - the hostname of a running message queue server
+ * @param port - the corresponding port
+ *
+ * @returns the readonly MessageQueue object
+ */
 export async function getMessageQueue(
   host: string,
   port: number
@@ -26,6 +34,13 @@ export async function getMessageQueue(
   })
 }
 
+/**
+ * Closes the message queue by sending an END message to the server
+ *
+ * @param queue - the message queue object of the connection you want to close
+ *
+ * @returns a MessageQueue object representing the changes
+ */
 export function closeMessageQueue(
   queue: Readonly<MessageQueue>
 ): Readonly<MessageQueue> {
@@ -38,12 +53,24 @@ export function closeMessageQueue(
   }
 }
 
+/**
+ * Asks the message queue for a task. Optionally you can specify which queue (a message queue server manages multiple ones)
+ * you want to query.
+ *
+ * @param queue - the message queue object you want to access
+ * @param from - an optional queue name matching /[A-Za-z]+/
+ * @param refreshConnection - Optional. By default the function tries to reach the server a second time if the
+ * connection times out the first time. When setting refreshConnection to true, it establishes a new connection directly and
+ * thus does not try a second time.
+ *
+ * @returns a readonly object representing the received task, or null if no task was available
+ */
 export async function getTask(
   queue: Readonly<MessageQueue>,
   from: string = "",
-  retry: boolean = false
+  refreshConnection: boolean = false
 ): Promise<Readonly<Task> | null> {
-  if (!queue.active || retry) {
+  if (!queue.active || refreshConnection) {
     queue = await getMessageQueue(queue.host, queue.port)
   }
 
@@ -68,7 +95,7 @@ export async function getTask(
         }
       },
       error: async (error) => {
-        if (!retry) {
+        if (!refreshConnection) {
           // if this isnt already the second attempt, try again.
 
           // we try twice because the connection may have timed out. If the connection
@@ -91,10 +118,30 @@ export async function getTask(
   })
 }
 
+/**
+ * Reschedules a task.
+ *
+ * @param task - the task you want to reschedule
+ */
 export async function rescheduleTask(task: Readonly<Task>) {
   await scheduleTask(task.parent, task.data, task.origin ?? null)
 }
 
+/**
+ * Schedules a new task for the message queue to manage. Optionally you can supply a queue name (see getTask).
+ *
+ * @remarks
+ * Due to the design of the protocol (no confirmations for scheduled tasks), the function cannot guarantee that the task scheduling
+ * was successful. For that reason we allow to set a timeout during which the function listens for tcp errors. After expiration we
+ * just assume the scheduling was successful.
+ *
+ * @param queue - the message queue for which you want to schedule the task
+ * @param task - a string or an object representing the task
+ * @param timeout - the time after which to assume that the scheduling was successful
+ * @param refreshConnection - should the connection be refreshed preemptively (see getTask)
+ *
+ * @returns a message queue object representing the changes
+ */
 export async function scheduleTask(
   queue: Readonly<MessageQueue>,
   task: string | object,
@@ -155,6 +202,18 @@ export async function scheduleTask(
   })
 }
 
+/**
+ * Marks the last task received as accepted.
+ *
+ * @remarks
+ * Due to the design of the protocol error handling is difficult. To acknowledge a task, the protocol does not need any
+ * metadata and just assumes the last task send over the socket should be acknowledged. If the socket crashes in the
+ * meantime, that information is obviously lost. To handle some of those errors, we can supply an onError listener
+ * that is called when encountering tcp errors.
+ *
+ * @param queue - the message queue that supplied the last task
+ * @param onError - an optional error handler
+ */
 export function acceptLastTask(
   queue: Readonly<MessageQueue>,
   onError: () => void = () => {}
@@ -172,6 +231,18 @@ export function acceptLastTask(
   queue.client.write("ACK")
 }
 
+/**
+ * Marks the last task received as declined.
+ *
+ * @remarks
+ * Due to the design of the protocol error handling is difficult. To acknowledge a task, the protocol does not need any
+ * metadata and just assumes the last task send over the socket should be acknowledged. If the socket crashes in the
+ * meantime, that information is obviously lost. To handle some of those errors, we can supply an onError listener
+ * that is called when encountering tcp errors. In this case we could there reschedule the event manually.
+ *
+ * @param queue - the message queue that supplied the last task
+ * @param onError - an optional error handler
+ */
 export function declineLastTask(
   queue: Readonly<MessageQueue>,
   onError: () => void = () => {}
