@@ -1,4 +1,5 @@
 import net from "net"
+import sleep from "sleep-promise"
 import { MessageQueue, Task } from "./@types/types"
 
 export async function getMessageQueue(
@@ -42,7 +43,7 @@ export async function getTask(
   from: string = "",
   retry: boolean = false
 ): Promise<Readonly<Task> | null> {
-  if (!queue.active || queue.client.destroyed || retry) {
+  if (!queue.active || retry) {
     queue = await getMessageQueue(queue.host, queue.port)
   }
 
@@ -60,7 +61,10 @@ export async function getTask(
         const match = regex.exec(data.toString())
 
         if (match != null) {
-          task.data = match[0]
+          task.data = match[1]
+          resolve(task)
+        } else {
+          resolve(null)
         }
       },
       error: async (error) => {
@@ -69,7 +73,12 @@ export async function getTask(
 
           // we try twice because the connection may have timed out. If the connection
           // fails again, we assume that the server is not reachable and throw an error.
-          resolve(await getTask(queue, from, true))
+          try {
+            const task = await getTask(queue, from, true)
+            resolve(task)
+          } catch (error) {
+            reject(error)
+          }
         } else {
           reject(error)
         }
@@ -90,23 +99,33 @@ export async function scheduleTask(
   queue: Readonly<MessageQueue>,
   task: string | object,
   forQueue: string | null,
-  retry: boolean = false
+  timeout: number = 1000,
+  refreshConnection: boolean = false
 ): Promise<Readonly<MessageQueue>> {
-  if (!queue.active || queue.client.destroyed || retry) {
+  if (!queue.active || refreshConnection) {
     queue = await getMessageQueue(queue.host, queue.port)
   }
 
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     // register listeners for relevant events
+
+    let barrier = false
+
     registerOneTimeEvents({
       socket: queue.client,
       error: async (error) => {
-        if (!retry) {
+        barrier = true
+        if (!refreshConnection) {
           // if this isnt already the second attempt, try again.
 
           // we try twice because the connection may have timed out. If the connection
           // fails again, we assume that the server is not reachable and throw an error.
-          resolve(await scheduleTask(queue, task, forQueue, true))
+          try {
+            const q = await scheduleTask(queue, task, forQueue, timeout, true)
+            resolve(q)
+          } catch (error) {
+            reject(error)
+          }
         } else {
           reject(error)
         }
@@ -122,13 +141,23 @@ export async function scheduleTask(
       forQueue != null ? `SCHED ${task}@${forQueue}` : `SCHED ${task}`
     queue.client.write(message)
 
+    if (!refreshConnection) {
+      // wait for potential errors
+      await sleep(timeout)
+    }
+
+    // barrier is true if an error occurred
+    if (barrier) {
+      return
+    }
+
     resolve(queue)
   })
 }
 
 export function acceptLastTask(
   queue: Readonly<MessageQueue>,
-  onError: () => void
+  onError: () => void = () => {}
 ) {
   // we are a bit limited by the protocol here. We can only accept the last task we received
   // and that only if the tcp connection didn't terminate in between. To work with these
@@ -145,7 +174,7 @@ export function acceptLastTask(
 
 export function declineLastTask(
   queue: Readonly<MessageQueue>,
-  onError: () => void
+  onError: () => void = () => {}
 ) {
   // same limitations as acceptLastTask
   registerOneTimeEvents({

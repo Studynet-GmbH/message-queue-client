@@ -9,6 +9,9 @@
         "build": "tsc",
         "test": "npm run build && nyc ./node_modules/mocha/bin/mocha dist/**/*.spec.js"
     },
+    "dependencies": {
+	"sleep-promise": "^8.0.1"
+    },
     "devDependencies": {
         "@types/chai": "^4.2.12",
         "@types/chai-as-promised": "^7.1.3",
