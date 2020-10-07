@@ -253,8 +253,8 @@ export function acceptLastTask(
  * Marks the last task received as declined.
  *
  * @remarks
- * Due to the design of the protocol error handling is difficult. To acknowledge a task, the protocol does not need any
- * metadata and just assumes the last task send over the socket should be acknowledged. If the socket crashes in the
+ * Due to the design of the protocol error handling is difficult. To decline a task, the protocol does not need any
+ * metadata and just assumes the last task send over the socket should be decline. If the socket crashes in the
  * meantime, that information is obviously lost. To handle some of those errors, we can supply an onError listener
  * that is called when encountering tcp errors. In this case we could there reschedule the event manually.
  *
@@ -274,6 +274,33 @@ export function declineLastTask(
   })
 
   queue.client.write("DCL")
+}
+
+/**
+ * Marks the last task received as deleted.
+ *
+ * @remarks
+ * Due to the design of the protocol error handling is difficult. To delete a task, the protocol does not need any
+ * metadata and just assumes the last task send over the socket should be deleted. If the socket crashes in the
+ * meantime, that information is obviously lost. To handle some of those errors, we can supply an onError listener
+ * that is called when encountering tcp errors.
+ *
+ * @param queue - the message queue that supplied the last task
+ * @param onError - an optional error handler
+ */
+export function deleteLastTask(
+  queue: Readonly<MessageQueue>,
+  onError: () => void = () => {}
+) {
+  // same limitations as acceptLastTask
+  registerOneTimeEvents({
+    socket: queue.client,
+    error: (_) => {
+      onError()
+    },
+  })
+
+  queue.client.write("DEL")
 }
 
 function registerOneTimeEvents({

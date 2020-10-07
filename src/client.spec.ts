@@ -390,4 +390,31 @@ describe("Message queue client functions", () => {
       })
     }).timeout(5000)
   })
+
+  describe("deleteLastTask", () => {
+    it("should send a DEL message to the server", async () => {
+      await new Promise(async (resolve) => {
+        mockOnConnection = (socket) => {
+          socket.on("data", function (data) {
+            expect(data.toString().trim()).to.eql("DEL")
+            resolve()
+          })
+        }
+
+        const queue = await subject.getMessageQueue("localhost", 8080)
+        subject.deleteLastTask(queue)
+      })
+    })
+
+    it("should call the error callback if supplied and an error occurred", async () => {
+      const queue = await subject.getMessageQueue("localhost", 8080)
+      queue.client.destroy()
+
+      await new Promise((resolve) => {
+        subject.deleteLastTask(queue, () => {
+          resolve()
+        })
+      })
+    }).timeout(5000)
+  })
 })
