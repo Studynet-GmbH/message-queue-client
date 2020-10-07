@@ -6,7 +6,7 @@
         "timeout": 0
     },
     "scripts": {
-	"prepare": "npm run build"
+	"prepare": "npm run build",
         "build": "tsc",
         "test": "npm run build && nyc ./node_modules/mocha/bin/mocha dist/**/*.spec.js"
     },
