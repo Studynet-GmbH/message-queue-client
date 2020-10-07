@@ -1,2 +1,2 @@
-import * as client from "./client"
-export default client
+export * from "./client"
+export { MessageQueue, Task } from "./@types/types"
