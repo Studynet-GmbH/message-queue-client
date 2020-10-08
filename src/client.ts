@@ -47,7 +47,7 @@ export async function getMessageQueue(
 export function closeMessageQueue(
   queue: Readonly<MessageQueue>
 ): Readonly<MessageQueue> {
-  queue.client.write("END")
+  queue.client.write("END\n")
   return {
     host: queue.host,
     port: queue.port,
@@ -133,7 +133,7 @@ export async function getTask(
     })
 
     // send ASK message
-    const message = `ASK ${from}`
+    const message = `ASK ${from}\n`
     queue.client.write(message)
 
     setTimeout(() => {
@@ -215,7 +215,7 @@ export async function scheduleTask(
 
     // send SCHED message
     const message =
-      forQueue != null ? `SCHED ${task}@${forQueue}` : `SCHED ${task}`
+      forQueue != null ? `SCHED ${task}@${forQueue}\n` : `SCHED ${task}\n`
     queue.client.write(message)
 
     if (!refreshConnection) {
@@ -258,7 +258,7 @@ export function acceptLastTask(
     },
   })
 
-  queue.client.write("ACK")
+  queue.client.write("ACK\n")
 }
 
 /**
@@ -285,7 +285,7 @@ export function declineLastTask(
     },
   })
 
-  queue.client.write("DCL")
+  queue.client.write("DCL\n")
 }
 
 /**
@@ -312,7 +312,7 @@ export function deleteLastTask(
     },
   })
 
-  queue.client.write("DEL")
+  queue.client.write("DEL\n")
 }
 
 function registerOneTimeEvents({

@@ -57,7 +57,7 @@ describe("Message queue client functions", () => {
       await new Promise(async (resolve) => {
         mockOnConnection = (socket) => {
           socket.on("data", function (data) {
-            expect(data.toString()).to.eql("END")
+            expect(data.toString().trim()).to.eql("END")
             resolve()
           })
         }
