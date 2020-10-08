@@ -21,6 +21,10 @@ describe("Message queue client functions", () => {
     })
   })
 
+  afterEach(() => {
+    mockOnConnection = (_) => {}
+  })
+
   after(() => {
     mockServer.close()
     connections.forEach((socket) => {
@@ -70,6 +74,7 @@ describe("Message queue client functions", () => {
         mockOnConnection = (socket) => {
           socket.on("data", function (data) {
             expect(data.toString().trim()).to.eql("ASK")
+            socket.write("NOPE")
             resolve()
           })
         }
@@ -85,6 +90,7 @@ describe("Message queue client functions", () => {
         mockOnConnection = (socket) => {
           socket.on("data", function (data) {
             expect(data.toString().trim()).to.eql(`ASK ${testQueueName}`)
+            socket.write("NOPE")
             resolve()
           })
         }
@@ -213,7 +219,13 @@ describe("Message queue client functions", () => {
         })
       })
 
-      expect(subject.getTask(queue)).to.be.rejectedWith(Error)
+      expect(subject.getTask(queue)).to.eventually.be.rejectedWith(Error)
+    })
+
+    it("should throw an error after 5s without answer", async () => {
+      const queue = await subject.getMessageQueue("localhost", 8080)
+
+      expect(subject.getTask(queue)).to.eventually.be.rejectedWith(Error)
     })
   })
 

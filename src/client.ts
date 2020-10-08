@@ -83,11 +83,15 @@ export async function getTask(
     data: "",
   }
 
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
+    let barrier = false
+
     // register listeners for relevant events
     registerOneTimeEvents({
       socket: queue.client,
       data: (data: string | Buffer) => {
+        barrier = true
+
         const regex = /WANT\? (.+)/
         const match = regex.exec(data.toString())
 
@@ -109,6 +113,8 @@ export async function getTask(
         }
       },
       error: async (error) => {
+        barrier = true
+
         if (!refreshConnection) {
           // if this isnt already the second attempt, try again.
 
@@ -118,10 +124,10 @@ export async function getTask(
             const task = await getTask(queue, from, true)
             resolve(task)
           } catch (error) {
-            reject(error)
+            reject(new Error(error))
           }
         } else {
-          reject(error)
+          reject(new Error(error))
         }
       },
     })
@@ -129,6 +135,12 @@ export async function getTask(
     // send ASK message
     const message = `ASK ${from}`
     queue.client.write(message)
+
+    setTimeout(() => {
+      if (!barrier) {
+        reject(new Error("No response after 5000ms"))
+      }
+    }, 5000)
   })
 }
 
