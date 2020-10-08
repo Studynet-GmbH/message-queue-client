@@ -75,7 +75,7 @@ export async function getTask(
   refreshConnection: boolean = false
 ): Promise<Readonly<Task> | null> {
   if (!queue.active || refreshConnection) {
-    queue = await getMessageQueue(queue.host, queue.port)
+    queue = await getMessageQueue(queue.host, queue.port, queue.jsonMode)
   }
 
   const task: Task = {
@@ -164,7 +164,7 @@ export async function scheduleTask(
   refreshConnection: boolean = false
 ): Promise<Readonly<MessageQueue>> {
   if (!queue.active || refreshConnection) {
-    queue = await getMessageQueue(queue.host, queue.port)
+    queue = await getMessageQueue(queue.host, queue.port, queue.jsonMode)
   }
 
   return new Promise(async (resolve, reject) => {
