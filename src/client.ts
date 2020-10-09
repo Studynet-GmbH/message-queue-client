@@ -324,16 +324,16 @@ function registerOneTimeEvents({
   data?: (data: string | Buffer) => any
   error?: (error: any) => any
 }) {
-  socket.on("data", (p: string | Buffer) => {
-    data(p)
+  function data_one_time(dat: string | Buffer) {
+    data(dat)
+    socket.off("data", data_one_time)
+  }
 
-    // only capture the first data event
-    socket.on("data", () => {})
-  })
+  function error_one_time(err: any) {
+    error(err)
+    socket.off("error", error_one_time)
+  }
 
-  socket.on("error", (p) => {
-    error(p)
-    // only capture the first error event
-    socket.on("error", () => {})
-  })
+  socket.on("data", data_one_time)
+  socket.on("error", error_one_time)
 }
