@@ -26,11 +26,13 @@ export async function getMessageQueue(
   }
 
   return new Promise((resolve, reject) => {
-    client.on("error", (error) => {
+    client.once("error", (error) => {
+      // this has to be removed if the client connected (or blocked by barrier)
       reject(new Error(error.toString()))
     })
 
     client.connect(port, host, () => {
+      //client.removeAllListeners() // remove initialization listeners
       queue.active = true
       resolve(queue)
     })
@@ -209,13 +211,13 @@ export async function scheduleTask(
       },
     })
 
-    if (typeof task == "object") {
-      task = JSON.stringify(task)
-    }
+    const schedulable = typeof task == "object" ? JSON.stringify(task) : task
 
     // send SCHED message
     const message =
-      forQueue != null ? `SCHED ${task}@${forQueue}\n` : `SCHED ${task}\n`
+      forQueue != null
+        ? `SCHED ${schedulable}@${forQueue}\n`
+        : `SCHED ${schedulable}\n`
     queue.client.write(message)
 
     if (!refreshConnection) {
@@ -324,16 +326,6 @@ function registerOneTimeEvents({
   data?: (data: string | Buffer) => any
   error?: (error: any) => any
 }) {
-  function data_one_time(dat: string | Buffer) {
-    data(dat)
-    socket.off("data", data_one_time)
-  }
-
-  function error_one_time(err: any) {
-    error(err)
-    socket.off("error", error_one_time)
-  }
-
-  socket.on("data", data_one_time)
-  socket.on("error", error_one_time)
+  socket.once("data", data)
+  socket.once("error", error)
 }
